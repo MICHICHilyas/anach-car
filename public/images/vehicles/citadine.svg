@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="CITADINE">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f5f9fa"/>
+      <stop offset="1" stop-color="#dfeaef"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="400" fill="url(#g)"/>
+  <g stroke="#17a29c" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".85">
+    <path d="M150 262v-42c0-9 7-16 16-16h30l34-42c5-6 12-9 20-9h84c8 0 15 3 20 9l34 42h32c9 0 16 7 16 16v42"/><path d="M246 204h148"/><path d="M320 153v51"/>
+  </g>
+  <circle cx="216" cy="262" r="32" fill="#0a2a3a" opacity=".12"/>
+  <circle cx="432" cy="262" r="32" fill="#0a2a3a" opacity=".12"/>
+  <circle cx="216" cy="262" r="14" fill="#f5f9fa"/>
+  <circle cx="432" cy="262" r="14" fill="#f5f9fa"/>
+  <text x="320" y="344" font-family="system-ui,sans-serif" font-size="14" letter-spacing="2" fill="#4d8098" text-anchor="middle">CITADINE</text>
+</svg>

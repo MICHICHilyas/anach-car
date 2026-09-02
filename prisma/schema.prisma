@@ -1,0 +1,630 @@
+// ---------------------------------------------------------------------------
+// Anach Car — schéma de base de données
+// Location de voitures · Dcheira - Inezgane, Maroc
+//
+// Conventions :
+//  - Tous les montants sont stockés en CENTIMES de dirham (Int).
+//    250,00 DH  ->  25000. Voir src/lib/money.ts
+//  - Les suppressions « métier » se font par archivage (archivedAt) afin de
+//    préserver l'historique comptable et les statistiques.
+//  - Toutes les dates sont des timestamps UTC (@db.Timestamptz).
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================ ÉNUMÉRATIONS =================================
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum VehicleStatus {
+  AVAILABLE // en flotte, louable
+  RENTED // actuellement chez un client
+  MAINTENANCE // immobilisée au garage
+  UNAVAILABLE // retirée temporairement de la location
+}
+
+enum VehicleCategory {
+  ECONOMIQUE
+  COMPACTE
+  BERLINE
+  SUV
+  MONOSPACE
+  UTILITAIRE
+  LUXE
+}
+
+enum Transmission {
+  MANUAL
+  AUTOMATIC
+}
+
+enum FuelType {
+  DIESEL
+  ESSENCE
+  HYBRIDE
+  ELECTRIQUE
+  GPL
+}
+
+enum CustomerStatus {
+  ACTIVE
+  BLACKLISTED
+}
+
+enum ReservationStatus {
+  PENDING // demande reçue, en attente de validation par l'agence
+  CONFIRMED // validée par l'agence, véhicule bloqué
+  ACTIVE // le client a pris le véhicule (location en cours)
+  COMPLETED // véhicule rendu, dossier clos
+  CANCELLED // annulée (client ou agence) après confirmation
+  REJECTED // demande refusée par l'agence
+}
+
+enum ReservationSource {
+  WEBSITE
+  PHONE
+  WHATSAPP
+  WALK_IN
+  ADMIN
+}
+
+enum PaymentStatus {
+  UNPAID // non payé
+  DEPOSIT_PAID // acompte payé
+  PARTIALLY_PAID // partiellement payé
+  PAID // soldé
+  REFUNDED // remboursé
+}
+
+enum PaymentType {
+  DEPOSIT // acompte
+  BALANCE // solde
+  EXTRA_FEE // frais supplémentaires (carburant, dégâts, retard)
+  REFUND // remboursement
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  CHECK
+  ONLINE
+  OTHER
+}
+
+enum MaintenanceType {
+  OIL_CHANGE // vidange
+  TIRES // pneus
+  BRAKES // freins
+  BATTERY // batterie
+  REVISION // révision générale
+  REPAIR // réparation
+  CLEANING // nettoyage
+  INSURANCE // renouvellement assurance
+  TECHNICAL_INSPECTION // visite technique
+  OTHER
+}
+
+enum MaintenanceStatus {
+  PLANNED
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum FuelLevel {
+  EMPTY
+  QUARTER
+  HALF
+  THREE_QUARTERS
+  FULL
+}
+
+enum DocumentType {
+  CIN
+  PASSPORT
+  DRIVER_LICENSE
+  CONTRACT
+  INSURANCE
+  TECHNICAL_INSPECTION
+  VEHICLE_REGISTRATION // carte grise
+  INVOICE
+  OTHER
+}
+
+enum NotificationType {
+  NEW_RESERVATION
+  RESERVATION_CONFIRMED
+  RESERVATION_REJECTED
+  RESERVATION_CANCELLED
+  RENTAL_STARTING
+  RENTAL_RETURN_DUE
+  RENTAL_OVERDUE
+  MAINTENANCE_DUE
+  MAINTENANCE_OVERDUE
+  INSURANCE_EXPIRING
+  INSPECTION_EXPIRING
+  DOCUMENT_EXPIRING
+  SYSTEM
+}
+
+enum NotificationSeverity {
+  INFO
+  SUCCESS
+  WARNING
+  DANGER
+}
+
+enum PricingRuleType {
+  SEASON // haute / basse saison
+  PROMO // promotion ponctuelle
+  LONG_DURATION // remise sur longue durée
+  EXTRA_FEE // frais additionnel (livraison, conducteur suppl.)
+}
+
+// ============================== UTILISATEURS ===============================
+
+/// Comptes du personnel de l'agence. Aucun client n'a de compte : les
+/// réservations publiques se font sans inscription (voir Customer).
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         UserRole  @default(EMPLOYEE)
+  isActive     Boolean   @default(true)
+  phone        String?
+  lastLoginAt  DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+
+  sessions            Session[]
+  auditLogs           AuditLog[]
+  confirmedBookings   Reservation[]       @relation("ReservationConfirmedBy")
+  checkedOutRentals   Rental[]            @relation("RentalCheckedOutBy")
+  checkedInRentals    Rental[]            @relation("RentalCheckedInBy")
+  recordedPayments    Payment[]
+  uploadedDocuments   Document[]
+  createdMaintenances MaintenanceRecord[]
+  readNotifications   Notification[]
+
+  @@index([email])
+}
+
+/// Session serveur : le cookie ne contient qu'un jeton aléatoire dont le
+/// hash SHA-256 est stocké ici, ce qui permet la révocation immédiate.
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime @db.Timestamptz(3)
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ================================ FLOTTE ===================================
+
+model Vehicle {
+  id           String  @id @default(cuid())
+  internalCode String  @unique /// Référence interne agence, ex. AC-V-012
+  slug         String  @unique /// URL publique, ex. renault-clio-2023-a12345
+  brand        String
+  model        String
+  year         Int
+  plate        String  @unique /// Immatriculation
+  color        String?
+
+  category   VehicleCategory
+  transmission Transmission
+  fuel       FuelType
+  seats      Int             @default(5)
+  doors      Int             @default(5)
+  hasAirConditioning Boolean @default(true)
+  mileage    Int             @default(0) /// Kilométrage actuel
+
+  // --- Tarification (centimes de MAD) ---
+  dailyRate    Int /// Prix par jour
+  rate3Days    Int? /// Forfait 3 jours et + (par jour)
+  weeklyRate   Int? /// Forfait 7 jours et + (par jour)
+  monthlyRate  Int? /// Forfait 30 jours et + (par jour)
+  minRentalDays Int  @default(1)
+
+  status     VehicleStatus @default(AVAILABLE)
+  isFeatured Boolean       @default(false)
+
+  // --- Descriptions multilingues (le FR est la langue de référence) ---
+  descriptionFr String?
+  descriptionEn String?
+  descriptionAr String?
+  features      String[] @default([]) /// Équipements : GPS, Bluetooth, USB…
+
+  // --- Administratif ---
+  purchaseDate               DateTime? @db.Date
+  insuranceProvider          String?
+  insuranceExpiry            DateTime? @db.Date
+  technicalInspectionExpiry  DateTime? @db.Date
+
+  // --- Entretien / vidange ---
+  oilChangeIntervalKm   Int       @default(10000)
+  lastOilChangeMileage  Int?
+  lastOilChangeDate     DateTime? @db.Date
+  nextOilChangeMileage  Int?
+  nextOilChangeDate     DateTime? @db.Date
+
+  internalNotes String?
+  archivedAt    DateTime? @db.Timestamptz(3)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+
+  images       VehicleImage[]
+  reservations Reservation[]
+  rentals      Rental[]
+  maintenances Maintenance[]
+  maintenanceRecords MaintenanceRecord[]
+  documents    Document[]
+  pricingRules PricingRule[]
+
+  @@index([status, archivedAt])
+  @@index([category])
+  @@index([dailyRate])
+  @@index([brand, model])
+}
+
+model VehicleImage {
+  id        String   @id @default(cuid())
+  vehicleId String
+  url       String
+  alt       String?
+  position  Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, position])
+}
+
+// =============================== CLIENTS ===================================
+
+model Customer {
+  id           String  @id @default(cuid())
+  firstName    String
+  lastName     String
+  phone        String
+  email        String?
+  cin          String? /// CIN ou passeport
+  licenseNumber String? /// Numéro de permis
+  licenseIssuedAt DateTime? @db.Date
+  birthDate    DateTime? @db.Date
+  country      String  @default("Maroc")
+  city         String?
+  address      String?
+
+  status        CustomerStatus @default(ACTIVE)
+  internalNotes String?
+  archivedAt    DateTime?      @db.Timestamptz(3)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+
+  reservations Reservation[]
+  rentals      Rental[]
+  payments     Payment[]
+  documents    Document[]
+
+  @@index([phone])
+  @@index([email])
+  @@index([lastName, firstName])
+}
+
+// ============================ LIEUX DE PRISE ===============================
+
+model Location {
+  id        String  @id @default(cuid())
+  name      String
+  nameEn    String?
+  nameAr    String?
+  address   String?
+  isPickup  Boolean @default(true)
+  isDropoff Boolean @default(true)
+  extraFee  Int     @default(0) /// Supplément en centimes
+  position  Int     @default(0)
+  isActive  Boolean @default(true)
+
+  pickupReservations  Reservation[] @relation("PickupLocation")
+  dropoffReservations Reservation[] @relation("DropoffLocation")
+}
+
+// ============================ RÉSERVATIONS =================================
+
+model Reservation {
+  id        String @id @default(cuid())
+  reference String @unique /// AC-2026-00124
+
+  vehicleId  String
+  customerId String
+
+  startAt DateTime @db.Timestamptz(3)
+  endAt   DateTime @db.Timestamptz(3)
+
+  pickupLocationId  String?
+  dropoffLocationId String?
+  pickupLocationLabel  String? /// Libellé figé au moment de la réservation
+  dropoffLocationLabel String?
+
+  // --- Devis figé à la création (les tarifs peuvent changer ensuite) ---
+  days            Int
+  dailyRate       Int /// Tarif journalier appliqué
+  subtotal        Int /// days * dailyRate
+  extraFees       Int @default(0)
+  discount        Int @default(0)
+  totalAmount     Int /// subtotal + extraFees - discount
+  priceBreakdown  Json? /// Détail lisible du calcul (lignes du devis)
+
+  status        ReservationStatus @default(PENDING)
+  paymentStatus PaymentStatus     @default(UNPAID)
+  source        ReservationSource @default(WEBSITE)
+
+  customerComment String?
+  internalNotes   String?
+
+  confirmedAt        DateTime? @db.Timestamptz(3)
+  confirmedById      String?
+  cancelledAt        DateTime? @db.Timestamptz(3)
+  cancellationReason String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  vehicle         Vehicle   @relation(fields: [vehicleId], references: [id])
+  customer        Customer  @relation(fields: [customerId], references: [id])
+  pickupLocation  Location? @relation("PickupLocation", fields: [pickupLocationId], references: [id])
+  dropoffLocation Location? @relation("DropoffLocation", fields: [dropoffLocationId], references: [id])
+  confirmedBy     User?     @relation("ReservationConfirmedBy", fields: [confirmedById], references: [id])
+
+  rental    Rental?
+  payments  Payment[]
+  documents Document[]
+
+  @@index([status, startAt])
+  @@index([vehicleId, startAt, endAt])
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+/// Location réellement en cours : état des lieux départ / retour.
+model Rental {
+  id            String @id @default(cuid())
+  reservationId String @unique
+  vehicleId     String
+  customerId    String
+
+  // --- Départ ---
+  startedAt          DateTime  @db.Timestamptz(3)
+  startMileage       Int
+  startFuel          FuelLevel @default(FULL)
+  startConditionNotes String?
+  checkedOutById     String?
+
+  // --- Retour ---
+  endedAt          DateTime?  @db.Timestamptz(3)
+  endMileage       Int?
+  endFuel          FuelLevel?
+  damageNotes      String?
+  checkedInById    String?
+
+  // --- Finances ---
+  extraFees               Int     @default(0)
+  extraFeesReason         String?
+  finalAmount             Int?
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  reservation  Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  vehicle      Vehicle     @relation(fields: [vehicleId], references: [id])
+  customer     Customer    @relation(fields: [customerId], references: [id])
+  checkedOutBy User?       @relation("RentalCheckedOutBy", fields: [checkedOutById], references: [id])
+  checkedInBy  User?       @relation("RentalCheckedInBy", fields: [checkedInById], references: [id])
+
+  @@index([vehicleId])
+  @@index([endedAt])
+}
+
+// ============================== PAIEMENTS ==================================
+
+model Payment {
+  id            String        @id @default(cuid())
+  reservationId String?
+  customerId    String?
+  amount        Int /// Centimes ; négatif pour un remboursement
+  type          PaymentType   @default(BALANCE)
+  method        PaymentMethod @default(CASH)
+  paidAt        DateTime      @default(now()) @db.Timestamptz(3)
+  reference     String? /// N° de transaction / chèque
+  note          String?
+  recordedById  String?
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+
+  reservation Reservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  recordedBy  User?        @relation(fields: [recordedById], references: [id])
+
+  @@index([reservationId])
+  @@index([paidAt])
+}
+
+// ============================== MAINTENANCE ================================
+
+/// Immobilisation planifiée : bloque la disponibilité du véhicule.
+model Maintenance {
+  id          String            @id @default(cuid())
+  vehicleId   String
+  type        MaintenanceType   @default(REVISION)
+  status      MaintenanceStatus @default(PLANNED)
+  startAt     DateTime          @db.Timestamptz(3)
+  endAt       DateTime          @db.Timestamptz(3)
+  description String?
+  garage      String?
+  estimatedCost Int?
+  blocksAvailability Boolean    @default(true)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+
+  vehicle Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  records MaintenanceRecord[]
+
+  @@index([vehicleId, startAt, endAt])
+  @@index([status])
+}
+
+/// Entretien réalisé : ligne d'historique (vidange, pneus, freins…).
+model MaintenanceRecord {
+  id            String          @id @default(cuid())
+  vehicleId     String
+  maintenanceId String?
+  type          MaintenanceType
+  performedAt   DateTime        @db.Date
+  mileage       Int?
+  cost          Int             @default(0)
+  garage        String?
+  notes         String?
+  createdById   String?
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
+
+  vehicle     Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  maintenance Maintenance? @relation(fields: [maintenanceId], references: [id], onDelete: SetNull)
+  createdBy   User?        @relation(fields: [createdById], references: [id])
+
+  @@index([vehicleId, performedAt])
+}
+
+// =============================== DOCUMENTS =================================
+
+/// Fichiers sensibles (CIN, permis, contrats). Jamais servis statiquement :
+/// l'accès passe par /api/admin/documents/[id]/file qui vérifie la session.
+model Document {
+  id            String       @id @default(cuid())
+  type          DocumentType
+  title         String?
+  fileName      String
+  storageKey    String /// Clé opaque chez le driver de stockage
+  mimeType      String
+  size          Int
+  expiresAt     DateTime?    @db.Date
+  customerId    String?
+  vehicleId     String?
+  reservationId String?
+  uploadedById  String?
+  createdAt     DateTime     @default(now()) @db.Timestamptz(3)
+
+  customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  vehicle     Vehicle?     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  reservation Reservation? @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  uploadedBy  User?        @relation(fields: [uploadedById], references: [id])
+
+  @@index([customerId])
+  @@index([vehicleId])
+  @@index([expiresAt])
+}
+
+// ============================= NOTIFICATIONS ===============================
+
+model Notification {
+  id         String               @id @default(cuid())
+  type       NotificationType
+  severity   NotificationSeverity @default(INFO)
+  title      String
+  message    String?
+  link       String?
+  entityType String?
+  entityId   String?
+  /// Clé d'idempotence : évite de recréer 10x la même alerte de vidange.
+  dedupeKey  String?              @unique
+  isRead     Boolean              @default(false)
+  readAt     DateTime?            @db.Timestamptz(3)
+  readById   String?
+  createdAt  DateTime             @default(now()) @db.Timestamptz(3)
+
+  readBy User? @relation(fields: [readById], references: [id])
+
+  @@index([isRead, createdAt])
+}
+
+// ========================== RÈGLES TARIFAIRES ==============================
+
+/// Couche tarifaire extensible : saisons, promos, remises longue durée.
+/// Appliquée par src/lib/pricing.ts par ordre de priorité décroissant.
+model PricingRule {
+  id        String          @id @default(cuid())
+  name      String
+  type      PricingRuleType @default(SEASON)
+  vehicleId String? /// null = s'applique à toute la flotte
+  category  VehicleCategory? /// null = toutes catégories
+  startDate DateTime?       @db.Date
+  endDate   DateTime?       @db.Date
+  minDays   Int?
+  maxDays   Int?
+  /// Modificateurs : l'un OU l'autre. multiplier = 1.20 => +20 %.
+  multiplier      Float?
+  fixedDailyRate  Int?
+  discountPercent Int?
+  flatAmount      Int?
+  priority  Int     @default(0)
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([isActive, priority])
+}
+
+// ========================== PARAMÈTRES & AUDIT =============================
+
+/// Paramètres de l'agence (clé -> JSON). Voir src/lib/settings.ts.
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  userLabel  String? /// Nom figé : l'historique survit à la suppression du compte
+  action     String /// vehicle.create, reservation.confirm…
+  entityType String?
+  entityId   String?
+  summary    String
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+}
+
+/// Compteurs de séquence (numérotation des réservations par année).
+model Counter {
+  key   String @id /// ex. reservation:2026
+  value Int    @default(0)
+}

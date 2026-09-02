@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="BERLINE">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f5f9fa"/>
+      <stop offset="1" stop-color="#dfeaef"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="400" fill="url(#g)"/>
+  <g stroke="#0f8c86" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".85">
+    <path d="M132 262v-40c0-9 7-16 16-16h24l40-44c5-6 12-9 20-9h120c8 0 15 3 20 9l40 44h80c9 0 16 7 16 16v40"/><path d="M232 206h176"/><path d="M320 153v53"/>
+  </g>
+  <circle cx="216" cy="262" r="32" fill="#0a2a3a" opacity=".12"/>
+  <circle cx="432" cy="262" r="32" fill="#0a2a3a" opacity=".12"/>
+  <circle cx="216" cy="262" r="14" fill="#f5f9fa"/>
+  <circle cx="432" cy="262" r="14" fill="#f5f9fa"/>
+  <text x="320" y="344" font-family="system-ui,sans-serif" font-size="14" letter-spacing="2" fill="#4d8098" text-anchor="middle">BERLINE</text>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="UTILITAIRE">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f5f9fa"/>
+      <stop offset="1" stop-color="#dfeaef"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="400" fill="url(#g)"/>
+  <g stroke="#3d6880" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".85">
+    <path d="M126 262v-46c0-9 7-16 16-16h22l36-46c5-6 12-9 20-9h56c9 0 16 7 16 16v46h206c9 0 16 7 16 16v39"/><path d="M228 200h64"/><path d="M292 161v39"/>
+  </g>
+  <circle cx="216" cy="262" r="32" fill="#0a2a3a" opacity=".12"/>
+  <circle cx="432" cy="262" r="32" fill="#0a2a3a" opacity=".12"/>
+  <circle cx="216" cy="262" r="14" fill="#f5f9fa"/>
+  <circle cx="432" cy="262" r="14" fill="#f5f9fa"/>
+  <text x="320" y="344" font-family="system-ui,sans-serif" font-size="14" letter-spacing="2" fill="#4d8098" text-anchor="middle">UTILITAIRE</text>
+</svg>

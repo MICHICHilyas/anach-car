@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="SUV">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f5f9fa"/>
+      <stop offset="1" stop-color="#dfeaef"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="400" fill="url(#g)"/>
+  <g stroke="#125456" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity=".85">
+    <path d="M132 258v-52c0-9 7-16 16-16h28l36-52c5-7 12-10 20-10h116c8 0 15 3 20 10l36 52h64c9 0 16 7 16 16v52"/><path d="M232 190h176"/><path d="M320 128v62"/><path d="M148 214h344"/>
+  </g>
+  <circle cx="216" cy="262" r="32" fill="#0a2a3a" opacity=".12"/>
+  <circle cx="432" cy="262" r="32" fill="#0a2a3a" opacity=".12"/>
+  <circle cx="216" cy="262" r="14" fill="#f5f9fa"/>
+  <circle cx="432" cy="262" r="14" fill="#f5f9fa"/>
+  <text x="320" y="344" font-family="system-ui,sans-serif" font-size="14" letter-spacing="2" fill="#4d8098" text-anchor="middle">SUV</text>
+</svg>
