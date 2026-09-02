@@ -325,25 +325,3 @@
   margin: 14mm 12mm;
 }
 
-@media print {
-  .no-print {
-    display: none !important;
-  }
-
-  html,
-  body {
-    background: #ffffff;
-    /* Les aplats de couleur (en-têtes de tableau, totaux) doivent être
-       imprimés : sans cela, la plupart des navigateurs les suppriment. */
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    font-size: 12px;
-  }
-
-  /* Un contrat ne doit jamais se couper au milieu d'une section. */
-  section,
-  table,
-  tr {
-    break-inside: avoid;
-  }
-}

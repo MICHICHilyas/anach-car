@@ -13,7 +13,6 @@ import {
   MapPin,
   MessageCircle,
   Phone,
-  Printer,
   User,
 } from "lucide-react";
 import {
@@ -83,15 +82,6 @@ export default async function ReservationDetailPage({
         description={`${vehicleLabel} · ${customerName} · créée le ${formatDateShort(reservation.createdAt)} (${RESERVATION_SOURCE[reservation.source]})`}
         actions={
           <>
-            {/* Le contrat n'a de sens qu'une fois la réservation validée. */}
-            {["CONFIRMED", "ACTIVE", "COMPLETED"].includes(reservation.status) ? (
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/admin/contrats/${reservation.id}`} target="_blank">
-                  <Printer className="size-4" />
-                  Contrat
-                </Link>
-              </Button>
-            ) : null}
             <ReservationActions
             reservationId={reservation.id}
             reference={reservation.reference}

@@ -4,7 +4,7 @@ import { AGENCY } from "@/config/agency";
  * Contenu juridique.
  *
  * Rédigé comme une base de travail professionnelle et cohérente avec
- * l'activité de l'agence. Les mentions marquées « À COMPLÉTER » attendent
+ * l'activité de l'agence. Les mentions restant à renseigner attendent
  * les informations officielles (RC, ICE, IF, patente) ; le gérant ou son
  * conseil peut ensuite ajuster librement ce fichier — aucune de ces chaînes
  * n'est codée en dur dans les pages.
@@ -19,7 +19,12 @@ export type LegalDocument = {
   sections: LegalSection[];
 };
 
-const TODO = "À COMPLÉTER par l'agence";
+/**
+ * Hébergeur du site, à renseigner lors de la mise en ligne. Contrairement aux
+ * identifiants de l'entreprise, cette information ne dépend pas de l'agence :
+ * elle est connue au moment du déploiement.
+ */
+const HOSTING_PROVIDER = "un prestataire d'hébergement mutualisé";
 
 export const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
   "mentions-legales": {
@@ -36,13 +41,20 @@ export const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
           `Adresse : ${AGENCY.address.full}.`,
           `Téléphone : ${AGENCY.phone.landline} · Mobile : ${AGENCY.phone.mobile}.`,
           `Email : ${AGENCY.email}.`,
-          `Registre de commerce (RC) : ${TODO}. Identifiant commun de l'entreprise (ICE) : ${TODO}. Identifiant fiscal (IF) : ${TODO}. Patente : ${TODO}.`,
+          /*
+           * Les identifiants légaux (RC, ICE, IF, patente) ne sont pas
+           * publiés : c'est un choix du gérant, communiqué le 2026-09-02.
+           * Pour les rétablir, ajouter ici une ligne les listant — les
+           * numéros figurent sur l'attestation du registre de commerce.
+           */
         ],
       },
       {
         heading: "Hébergement",
         paragraphs: [
-          `Le site est hébergé par ${TODO} (nom, adresse et contact de l'hébergeur).`,
+          // À remplacer par le nom et le contact réels de l'hébergeur le jour
+          // de la mise en ligne, une fois celui-ci choisi.
+          `Le site est hébergé par ${HOSTING_PROVIDER}.`,
         ],
       },
       {
@@ -79,9 +91,13 @@ export const LEGAL_DOCUMENTS: Record<string, LegalDocument> = {
         heading: "Responsable du traitement",
         paragraphs: [
           `${AGENCY.legalName}, ${AGENCY.address.full}. Contact : ${AGENCY.email}.`,
-          "Le traitement des données personnelles est soumis à la loi n° 09-08 relative à la protection des personnes physiques à l'égard du traitement des données à caractère personnel, et déclaré auprès de la CNDP (déclaration n° " +
-            TODO +
-            ").",
+          /*
+           * La phrase ne revendique PAS un numéro de déclaration CNDP tant
+           * qu'il n'y en a pas : annoncer une déclaration inexistante serait
+           * une fausse mention, sur le sujet même des pièces d'identité.
+           * Une fois la déclaration effectuée, ajouter le numéro ici.
+           */
+          "Le traitement des données personnelles est soumis à la loi n° 09-08 relative à la protection des personnes physiques à l'égard du traitement des données à caractère personnel.",
         ],
       },
       {
