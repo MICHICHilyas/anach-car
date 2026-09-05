@@ -90,26 +90,26 @@ export async function putFile(
     const { put } = await import("@vercel/blob");
 
     /*
-     * Deux niveaux d'accès, et la distinction est capitale :
+     * Tout est stocké en privé, photos de véhicules comprises.
      *
-     *  - `public`  : les photos de véhicules, servies directement par le CDN ;
-     *  - `private` : les pièces d'identité, qui n'ont AUCUNE URL exploitable.
+     * Ce n'est pas une contrainte subie : aucun fichier n'a d'URL directe, et
+     * tout passe par le serveur. Les photos sortent par /api/media (mises en
+     * cache un an, les clés étant des UUID immuables), les pièces d'identité
+     * par la route admin qui vérifie la session et journalise chaque accès.
      *
-     * Un fichier privé ne se lit qu'avec le jeton du magasin (voir
-     * `readStoredFile`), donc uniquement depuis le serveur, après contrôle de
-     * session. Même l'URL exacte ne suffit pas à l'ouvrir.
+     * Un magasin Vercel configuré en privé refuse d'ailleurs `access: public`.
      */
-    const blob = await put(key, buffer, {
-      access: isPublicFolder(folder) ? "public" : "private",
+    await put(key, buffer, {
+      access: "private",
       contentType: file.type,
       addRandomSuffix: false,
     });
 
     return {
       key,
-      // Les documents ne reçoivent jamais d'URL directe : leur lecture passe
-      // par la route authentifiée, qui journalise chaque consultation.
-      url: isPublicFolder(folder) ? blob.url : publicUrl(key),
+      // Toujours l'URL interne : elle vaut pour les deux pilotes et ne dépend
+      // pas du domaine du magasin.
+      url: publicUrl(key),
       fileName: file.name,
       mimeType: file.type,
       size: file.size,
@@ -141,9 +141,7 @@ export async function readStoredFile(key: string): Promise<Buffer> {
      * l'URL publique — ce qui n'aurait jamais fonctionné pour une pièce
      * d'identité, et aurait signifié qu'elle était accessible sans jeton.
      */
-    const result = await get(key, {
-      access: isPublicFolder(folderOf(key)) ? "public" : "private",
-    });
+    const result = await get(key, { access: "private" });
     if (!result?.stream) throw new Error("Fichier introuvable.");
 
     // `stream` est un ReadableStream web : on le vide via son lecteur.
@@ -196,21 +194,8 @@ export function publicUrl(key: string): string {
    * Toujours une URL interne, pour les deux pilotes.
    *
    * Pour un document, c'est une exigence : la route vérifie la session et
-   * journalise l'accès. Pour une photo de véhicule, l'URL CDN directe est
-   * renvoyée à l'écriture (`putFile`) et enregistrée dans `VehicleImage.url` ;
-   * on ne cherche donc jamais à la reconstruire ici, ce qui supposerait de
-   * connaître le domaine du magasin.
+   * journalise l'accès. Pour une photo, /api/media la sert avec un cache d'un
+   * an — les clés étant des UUID, le contenu ne change jamais.
    */
   return `/api/media/${key}`;
-}
-
-/** Seules les photos de véhicules sont servies publiquement. */
-function isPublicFolder(folder: Folder | null): boolean {
-  return folder === "vehicles";
-}
-
-/** Déduit le dossier depuis une clé (« documents/abc.pdf » -> « documents »). */
-function folderOf(key: string): Folder | null {
-  const prefix = key.split("/")[0];
-  return prefix === "vehicles" || prefix === "documents" ? prefix : null;
 }
