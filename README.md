@@ -555,9 +555,23 @@ reste passe par une route interne. Trois tests verrouillent cette règle dans
 - **Suppression à la demande** — la page de confidentialité l'annonce : un
   client peut demander la suppression de ses pièces. Il faut que quelqu'un à
   l'agence sache traiter cette demande depuis la fiche client.
-- **Sauvegarde** — le magasin de fichiers n'est pas sauvegardé par défaut.
-  Perdre le magasin, c'est perdre les pièces justificatives de tous les
-  dossiers en cours. À mettre en place avant la mise en ligne.
+- **Sauvegarde** — le magasin de fichiers n'est pas sauvegardé par défaut,
+  contrairement à la base. Perdre le magasin, c'est perdre les pièces
+  justificatives de tous les dossiers en cours.
+
+  ```bash
+  npm run backup:files                        # vers ./backups
+  npm run backup:files -- --out=/Volumes/Cle  # vers un disque externe
+  ```
+
+  La sauvegarde contient un `inventaire.json` reliant chaque fichier au
+  dossier client concerné : sans lui, on récupérerait des images aux noms
+  opaques, sans savoir à qui elles appartiennent. Le script signale en erreur
+  tout fichier référencé mais introuvable, plutôt que de laisser croire à une
+  sauvegarde complète.
+
+  Ces archives contiennent des pièces d'identité : elles ne doivent pas rester
+  sur la machine du site, et `backups/` est exclu du dépôt.
 
 ### Après la mise en ligne
 
@@ -567,7 +581,7 @@ reste passe par une route interne. Trois tests verrouillent cette règle dans
 - [ ] Remplacer les illustrations par de vraies photos de véhicules
 - [ ] Vérifier les coordonnées dans `src/config/agency.ts`
 - [ ] Déclarer le traitement des données auprès de la CNDP
-- [ ] Mettre en place une sauvegarde du magasin de fichiers
+- [ ] Planifier `npm run backup:files` (hebdomadaire) vers un support externe
 - [ ] Expliquer au gérant qui accède aux pièces d'identité (section ci-dessus)
 
 ---

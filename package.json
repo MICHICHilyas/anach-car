@@ -24,6 +24,7 @@
     "hero:photos": "tsx scripts/prepare-hero-photos.ts",
     "db:sync-counters": "tsx scripts/sync-counters.ts",
     "db:prepare-production": "tsx scripts/prepare-production.ts",
+    "backup:files": "tsx scripts/backup-files.ts",
     "check:boundaries": "node scripts/check-client-boundaries.mjs"
   },
   "dependencies": {

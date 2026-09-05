@@ -5,7 +5,9 @@
  *   npm run db:prepare-production -- --go    (exécute réellement)
  *
  * Ce que le script supprime :
- *   - les clients de démonstration, leurs réservations, locations et pièces ;
+ *   - les clients de démonstration, leurs réservations, locations et pièces,
+ *     FICHIERS COMPRIS : supprimer la ligne en base sans le fichier laisserait
+ *     des pièces d'identité sur le disque, sans plus rien pour les retrouver ;
  *   - les véhicules d'exemple listés dans DEMO_PLATES ;
  *   - les comptes de démonstration, dont le mot de passe figure au README.
  *
@@ -90,6 +92,21 @@ async function main() {
     return;
   }
 
+  /*
+   * On relève les fichiers à effacer AVANT la transaction : une fois les
+   * lignes parties, plus rien ne dit où vivent les pièces jointes.
+   */
+  const documentKeys = (
+    await db.document.findMany({ select: { storageKey: true } })
+  ).map((d) => d.storageKey);
+
+  const demoImageUrls = (
+    await db.vehicleImage.findMany({
+      where: { vehicleId: { in: demoIds } },
+      select: { url: true },
+    })
+  ).map((i) => i.url);
+
   await db.$transaction(async (tx) => {
     // L'ordre suit les dépendances : les enfants avant les parents.
     await tx.document.deleteMany({});
@@ -126,6 +143,34 @@ async function main() {
   // Les compteurs doivent repartir à zéro : la première vraie réservation
   // doit porter le numéro 0001, pas la suite des essais supprimés.
   await db.counter.deleteMany({});
+
+  /*
+   * Les fichiers, enfin. Après la transaction : une pièce d'identité laissée
+   * sur le disque après la suppression de sa ligne serait invisible depuis
+   * l'application et introuvable autrement — exactement ce que la page de
+   * confidentialité promet de ne pas faire.
+   */
+  const { deleteStoredFile } = await import("../src/lib/storage");
+  const keys = [
+    ...documentKeys,
+    // Les URL de photos sont de la forme /api/media/<clé>.
+    ...demoImageUrls
+      .map((url) => url.replace(/^\/api\/media\//, ""))
+      .filter((key) => key.startsWith("vehicles/")),
+  ];
+
+  let removed = 0;
+  for (const key of keys) {
+    try {
+      await deleteStoredFile(key);
+      removed += 1;
+    } catch (error) {
+      console.warn(`  ⚠️  fichier non supprimé : ${key} (${String(error)})`);
+    }
+  }
+  if (keys.length > 0) {
+    console.log(`\n  ${removed}/${keys.length} fichier(s) effacé(s) du stockage.`);
+  }
 
   console.log("\n✓ Base prête pour la mise en ligne.\n");
 }
