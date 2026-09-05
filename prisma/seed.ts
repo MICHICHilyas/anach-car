@@ -33,10 +33,38 @@ const dateOnly = (dayOffset: number) => {
 /** 250 DH -> 25000 centimes */
 const dh = (amount: number) => amount * 100;
 
+/**
+ * Le seed crée des comptes dont le mot de passe est écrit dans ce fichier et
+ * dans le README. Le lancer sur la base de l'agence effacerait ses données et
+ * rouvrirait un accès administrateur public : on refuse dès que la base n'est
+ * manifestement pas locale, sans se fier au seul NODE_ENV, qui n'est pas
+ * toujours positionné selon la façon dont la commande est lancée.
+ */
+function looksRemote(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname;
+    return !["localhost", "127.0.0.1", "::1", "host.docker.internal"].includes(
+      host,
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function main() {
-  if (process.env.NODE_ENV === "production" && process.env.SEED_FORCE !== "1") {
+  const forced = process.env.SEED_FORCE === "1";
+  if (!forced && process.env.NODE_ENV === "production") {
     throw new Error(
       "Seed bloqué en production. Relancez avec SEED_FORCE=1 si c'est volontaire.",
+    );
+  }
+  if (!forced && looksRemote(process.env.DATABASE_URL)) {
+    throw new Error(
+      "Seed bloqué : DATABASE_URL ne pointe pas sur une base locale.\n" +
+        "Ce script EFFACE toutes les données et recrée des comptes de\n" +
+        "démonstration au mot de passe public. Si c'est vraiment voulu,\n" +
+        "relancez avec SEED_FORCE=1.",
     );
   }
 
