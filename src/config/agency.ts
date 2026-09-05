@@ -81,18 +81,27 @@ export const AGENCY = {
 } as const;
 
 /** Lien WhatsApp avec message pré-rempli (encodé). */
-export function whatsappLink(message?: string): string {
-  const base = `https://wa.me/${AGENCY.phone.whatsapp}`;
+export function whatsappLink(
+  message?: string,
+  number: string = AGENCY.phone.whatsapp,
+): string {
+  const base = `https://wa.me/${number}`;
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }
 
-export function googleMapsLink(): string {
+/**
+ * Liens cartographiques. L'adresse est passée en argument par les pages
+ * publiques (celle saisie dans /admin/parametres) ; à défaut, celle de la
+ * configuration sert de repli.
+ */
+export function googleMapsLink(address: string = AGENCY.address.full): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    AGENCY.address.full,
+    address,
   )}`;
 }
 
-export function googleMapsEmbedUrl(): string {
-  const q = encodeURIComponent(AGENCY.address.full);
-  return `https://www.google.com/maps?q=${q}&output=embed`;
+export function googleMapsEmbedUrl(
+  address: string = AGENCY.address.full,
+): string {
+  return `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
 }

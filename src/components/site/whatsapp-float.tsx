@@ -11,10 +11,11 @@ import { whatsappGeneral } from "@/lib/whatsapp";
  * Sur mobile il descend sous la barre système grâce à `safe-area-inset`, et
  * se réduit à son icône pour ne pas recouvrir les boutons de la page.
  */
-export function WhatsAppFloat({ label = "WhatsApp" }: { label?: string }) {
+export async function WhatsAppFloat({ label = "WhatsApp" }: { label?: string }) {
+  const href = await whatsappGeneral();
   return (
     <a
-      href={whatsappGeneral()}
+      href={href}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`${label} — Anach Car`}

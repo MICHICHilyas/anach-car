@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Phone } from "lucide-react";
-import { AGENCY } from "@/config/agency";
+import { getAgencyContact } from "@/lib/settings";
 import { getDictionary, type Locale } from "@/i18n";
 import { whatsappGeneral } from "@/lib/whatsapp";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,11 @@ import { MobileMenu } from "@/components/site/mobile-menu";
 import { NavLink } from "@/components/site/nav-link";
 import { StickyHeader } from "@/components/site/sticky-header";
 
-export function SiteHeader({ locale }: { locale: Locale }) {
+export async function SiteHeader({ locale }: { locale: Locale }) {
+  const [agency, whatsappHref] = await Promise.all([
+    getAgencyContact(),
+    whatsappGeneral(),
+  ]);
   const t = getDictionary(locale);
   const base = `/${locale}`;
 
@@ -41,11 +45,11 @@ export function SiteHeader({ locale }: { locale: Locale }) {
           <LanguageSwitcher current={locale} />
 
           <a
-            href={`tel:${AGENCY.phone.mobileHref}`}
+            href={`tel:${agency.mobileHref}`}
             className="hidden items-center gap-2 rounded-lg px-3 py-2 text-[13.5px] font-semibold text-navy-800 transition-colors hover:bg-navy-50 xl:inline-flex"
           >
             <Phone className="size-4 text-teal-600" />
-            <span className="ltr-content">{AGENCY.phone.mobile}</span>
+            <span className="ltr-content">{agency.mobile}</span>
           </a>
 
           <Button asChild size="sm" className="hidden sm:inline-flex">
@@ -56,7 +60,7 @@ export function SiteHeader({ locale }: { locale: Locale }) {
             links={links}
             bookLabel={t.nav.book}
             callLabel={t.common.callUs}
-            whatsappHref={whatsappGeneral()}
+            whatsappHref={whatsappHref}
             whatsappLabel={t.common.whatsapp}
           />
         </div>

@@ -7,6 +7,20 @@ import { formatDateTime } from "@/lib/dates";
  * façon d'obtenir un rendu correct dans Gmail, Outlook et les clients mobiles.
  */
 
+/**
+ * Marqueur remplacé à l'envoi par les coordonnées saisies dans
+ * /admin/parametres (voir `renderContactBlock` dans src/lib/mailer.ts).
+ *
+ * Les gabarits restent ainsi synchrones — ils sont appelés depuis une
+ * douzaine d'endroits — tout en affichant des coordonnées à jour : si le
+ * gérant change de numéro, les emails suivants le reprennent aussitôt.
+ */
+export const CONTACT_PLACEHOLDER = "<!--anach:contact-->";
+const CONTACT_BLOCK = CONTACT_PLACEHOLDER;
+
+/** Idem pour le numéro cité dans le corps des messages. */
+export const MOBILE_PLACEHOLDER = "<!--anach:mobile-->";
+
 const TEAL = "#0f8c86";
 const NAVY = "#08293c";
 const BORDER = "#e4eaea";
@@ -27,9 +41,7 @@ function layout(params: { title: string; preheader: string; body: string }): str
         </td></tr>
         <tr><td style="padding:30px 28px 8px;">${params.body}</td></tr>
         <tr><td style="padding:22px 28px 28px;border-top:1px solid ${BORDER};color:#6b7f88;font-size:12px;line-height:1.7;">
-          ${AGENCY.address.full}<br>
-          Tél. ${AGENCY.phone.landline} · Mobile ${AGENCY.phone.mobile}<br>
-          <a href="mailto:${AGENCY.email}" style="color:${TEAL};text-decoration:none;">${AGENCY.email}</a>
+          ${CONTACT_BLOCK}
         </td></tr>
       </table>
     </td></tr>
@@ -123,7 +135,7 @@ export function reservationReceivedForCustomer(data: ReservationEmailData) {
         </p>
         ${detailsTable(data)}
         <p style="margin:18px 0 0;color:#6b7f88;font-size:13px;line-height:1.6;">
-          Une question ? Appelez-nous au ${AGENCY.phone.mobile}.
+          Une question ? Appelez-nous au ${MOBILE_PLACEHOLDER}.
         </p>`,
     }),
   };
@@ -175,7 +187,7 @@ export function reservationRejectedForCustomer(
         }
         <p style="margin:14px 0 0;color:#41606f;font-size:14px;line-height:1.6;">
           D'autres véhicules sont probablement disponibles sur vos dates :
-          appelez-nous au ${AGENCY.phone.mobile}, nous trouverons une solution.
+          appelez-nous au ${MOBILE_PLACEHOLDER}, nous trouverons une solution.
         </p>`,
     }),
   };

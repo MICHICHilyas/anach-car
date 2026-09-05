@@ -128,3 +128,47 @@ export async function updateSettings(
   });
   return merged;
 }
+
+/**
+ * Coordonnées effectives de l'agence : ce que le gérant a saisi dans
+ * /admin/parametres, complété par les valeurs de `config/agency.ts`.
+ *
+ * C'est ce que doivent lire les pages publiques, et non `AGENCY` directement.
+ * Sans cela, le formulaire de paramètres modifie les emails mais laisse le
+ * site afficher les anciennes coordonnées — une incohérence invisible, qui
+ * n'apparaît que le jour où un client appelle un numéro qui n'est plus le bon.
+ *
+ * Les valeurs `…Href` sont dérivées et non stockées : un numéro composable se
+ * déduit du numéro affiché en retirant les espaces.
+ */
+export type AgencyContact = {
+  name: string;
+  phone: string;
+  phoneHref: string;
+  mobile: string;
+  mobileHref: string;
+  whatsapp: string;
+  email: string;
+  address: string;
+  openingHours: string;
+};
+
+/** `+212 6 61 80 58 08` -> `+212661805808` */
+function toDialable(display: string): string {
+  return display.replace(/[^\d+]/g, "");
+}
+
+export const getAgencyContact = cache(async (): Promise<AgencyContact> => {
+  const { agency } = await getSettings();
+  return {
+    name: agency.name,
+    phone: agency.phone,
+    phoneHref: toDialable(agency.phone),
+    mobile: agency.mobile,
+    mobileHref: toDialable(agency.mobile),
+    whatsapp: agency.whatsapp,
+    email: agency.email,
+    address: agency.address,
+    openingHours: agency.openingHours,
+  };
+});

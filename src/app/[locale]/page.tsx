@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { getDictionary, type Locale } from "@/i18n";
 import { isLocale } from "@/i18n/config";
-import { AGENCY } from "@/config/agency";
+import { getAgencyContact } from "@/lib/settings";
 import { getFeaturedVehicles, getPickupLocations } from "@/server/queries/vehicles";
 import { SearchBar } from "@/components/site/search-bar";
 import { TrustStrip } from "@/components/site/trust-strip";
@@ -59,9 +59,10 @@ export default async function HomePage({
   const locale = raw as Locale;
   const t = getDictionary(locale);
 
-  const [vehicles, locations] = await Promise.all([
+  const [vehicles, locations, agency] = await Promise.all([
     getFeaturedVehicles(6),
     getPickupLocations(),
+    getAgencyContact(),
   ]);
 
   /*
@@ -278,8 +279,8 @@ export default async function HomePage({
               variant="outline"
               className="border-white/20 bg-white/5 text-white hover:border-teal-400 hover:bg-white/10"
             >
-              <a href={`tel:${AGENCY.phone.mobileHref}`}>
-                <span className="ltr-content">{AGENCY.phone.mobile}</span>
+              <a href={`tel:${agency.mobileHref}`}>
+                <span className="ltr-content">{agency.mobile}</span>
               </a>
             </Button>
           </div>

@@ -28,6 +28,7 @@ import { formatMoney } from "@/lib/money";
 import { vehicleLabels } from "@/i18n/vehicle-labels";
 import { FUEL, TRANSMISSION } from "@/lib/labels";
 import { whatsappForVehicle } from "@/lib/whatsapp";
+import { getAgencyContact } from "@/lib/settings";
 import { AGENCY } from "@/config/agency";
 import { Badge } from "@/components/ui/badge";
 import { VehicleGallery } from "@/components/site/vehicle-gallery";
@@ -80,10 +81,17 @@ export default async function VehicleDetailPage({
   const query = await searchParams;
   const period = parsePeriodFromParams(query);
 
-  const [locations, similar, blocked] = await Promise.all([
+  const [agency, locations, similar, blocked, whatsappHref] = await Promise.all([
+    getAgencyContact(),
     getPickupLocations(),
     getSimilarVehicles(vehicle.id, vehicle.category, 3),
     getBlockedPeriods(vehicle.id, new Date(), addDays(new Date(), 120)),
+    whatsappForVehicle({
+      brand: vehicle.brand,
+      model: vehicle.model,
+      startLabel: period ? formatDate(period.start) : undefined,
+      endLabel: period ? formatDate(period.end) : undefined,
+    }),
   ]);
 
   const label = `${vehicle.brand} ${vehicle.model}`;
@@ -135,7 +143,7 @@ export default async function VehicleDetailPage({
       price: (vehicle.dailyRate / 100).toFixed(2),
       priceCurrency: "MAD",
       availability: "https://schema.org/InStock",
-      seller: { "@type": "AutoRental", name: AGENCY.name },
+      seller: { "@type": "AutoRental", name: agency.name },
     },
   };
 
@@ -297,12 +305,7 @@ export default async function VehicleDetailPage({
               t={t}
               locations={locations}
               initialPeriod={period?.raw}
-              whatsappHref={whatsappForVehicle({
-                brand: vehicle.brand,
-                model: vehicle.model,
-                startLabel: period ? formatDate(period.start) : undefined,
-                endLabel: period ? formatDate(period.end) : undefined,
-              })}
+              whatsappHref={whatsappHref}
             />
           </aside>
         </div>

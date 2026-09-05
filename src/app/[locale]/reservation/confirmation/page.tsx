@@ -17,8 +17,8 @@ import { verifyReferenceToken } from "@/lib/tokens";
 import { formatDateTime } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { RESERVATION_STATUS } from "@/lib/labels";
-import { AGENCY } from "@/config/agency";
 import { whatsappForReservation } from "@/lib/whatsapp";
+import { getAgencyContact } from "@/lib/settings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -93,6 +93,17 @@ export default async function ConfirmationPage({
       </div>
     );
   }
+
+  const [agency, whatsappHref] = await Promise.all([
+    getAgencyContact(),
+    whatsappForReservation({
+      reference: reservation.reference,
+      brand: reservation.vehicle.brand,
+      model: reservation.vehicle.model,
+      startLabel: formatDateTime(reservation.startAt),
+      endLabel: formatDateTime(reservation.endAt),
+    }),
+  ]);
 
   const status = RESERVATION_STATUS[reservation.status];
   const vehicleLabel = `${reservation.vehicle.brand} ${reservation.vehicle.model}`;
@@ -194,20 +205,14 @@ export default async function ConfirmationPage({
           <p className="text-[14px] text-navy-500">{t.confirmation.needHelp}</p>
           <div className="mt-4 flex flex-wrap justify-center gap-2.5">
             <Button asChild variant="outline">
-              <a href={`tel:${AGENCY.phone.mobileHref}`}>
+              <a href={`tel:${agency.mobileHref}`}>
                 <Phone className="size-4" />
-                <span className="ltr-content">{AGENCY.phone.mobile}</span>
+                <span className="ltr-content">{agency.mobile}</span>
               </a>
             </Button>
             <Button asChild variant="whatsapp">
               <a
-                href={whatsappForReservation({
-                  reference: reservation.reference,
-                  brand: reservation.vehicle.brand,
-                  model: reservation.vehicle.model,
-                  startLabel: formatDateTime(reservation.startAt),
-                  endLabel: formatDateTime(reservation.endAt),
-                })}
+                href={whatsappHref}
                 target="_blank"
                 rel="noopener noreferrer"
               >

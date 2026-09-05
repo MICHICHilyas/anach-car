@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { Mail, MapPin, Phone, Smartphone } from "lucide-react";
-import { AGENCY, googleMapsLink } from "@/config/agency";
+import { googleMapsLink } from "@/config/agency";
+import { getAgencyContact } from "@/lib/settings";
 import { getDictionary, type Locale } from "@/i18n";
 import { Logo } from "@/components/site/logo";
 
-export function SiteFooter({ locale }: { locale: Locale }) {
+export async function SiteFooter({ locale }: { locale: Locale }) {
+  // Coordonnées telles que saisies dans /admin/parametres : le gérant doit
+  // pouvoir changer de numéro sans qu'un développeur intervienne.
+  const agency = await getAgencyContact();
   const t = getDictionary(locale);
   const base = `/${locale}`;
   const year = new Date().getFullYear();
@@ -83,41 +87,39 @@ export function SiteFooter({ locale }: { locale: Locale }) {
             <li className="flex gap-3">
               <MapPin className="mt-0.5 size-4 shrink-0 text-navy-500" />
               <a
-                href={googleMapsLink()}
+                href={googleMapsLink(agency.address)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="leading-relaxed transition-colors hover:text-white"
               >
-                {AGENCY.address.street}
-                <br />
-                {AGENCY.address.locality}
+                {agency.address}
               </a>
             </li>
             <li className="flex items-center gap-3">
               <Phone className="size-4 shrink-0 text-navy-500" />
               <a
-                href={`tel:${AGENCY.phone.landlineHref}`}
+                href={`tel:${agency.phoneHref}`}
                 className="ltr-content transition-colors hover:text-white"
               >
-                {AGENCY.phone.landline}
+                {agency.phone}
               </a>
             </li>
             <li className="flex items-center gap-3">
               <Smartphone className="size-4 shrink-0 text-navy-500" />
               <a
-                href={`tel:${AGENCY.phone.mobileHref}`}
+                href={`tel:${agency.mobileHref}`}
                 className="ltr-content transition-colors hover:text-white"
               >
-                {AGENCY.phone.mobile}
+                {agency.mobile}
               </a>
             </li>
             <li className="flex items-center gap-3">
               <Mail className="size-4 shrink-0 text-navy-500" />
               <a
-                href={`mailto:${AGENCY.email}`}
+                href={`mailto:${agency.email}`}
                 className="ltr-content break-all transition-colors hover:text-white"
               >
-                {AGENCY.email}
+                {agency.email}
               </a>
             </li>
           </ul>
@@ -127,11 +129,11 @@ export function SiteFooter({ locale }: { locale: Locale }) {
       <div className="border-t border-white/8">
         <div className="container-page flex flex-col items-center justify-between gap-3 py-6 pb-24 pe-5 text-[12.5px] text-navy-500 sm:flex-row sm:pb-6 sm:pe-32">
           <p>
-            © {year} {AGENCY.name}. {t.footer.rights}
+            © {year} {agency.name}. {t.footer.rights}
           </p>
           <div className="flex items-center gap-5">
             <span>
-              {t.common.openingHours} : {AGENCY.openingHours[0].hours}
+              {t.common.openingHours} : {agency.openingHours}
             </span>
             <Link
               href="/admin"

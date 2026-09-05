@@ -5,6 +5,7 @@ import { getDictionary, type Locale } from "@/i18n";
 import { isLocale } from "@/i18n/config";
 import { AGENCY, googleMapsEmbedUrl, googleMapsLink } from "@/config/agency";
 import { whatsappGeneral } from "@/lib/whatsapp";
+import { getAgencyContact } from "@/lib/settings";
 import { ContactForm } from "@/components/site/contact-form";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,34 +34,39 @@ export default async function ContactPage({
   const locale = raw as Locale;
   const t = getDictionary(locale);
 
+  const [agency, whatsappHref] = await Promise.all([
+    getAgencyContact(),
+    whatsappGeneral(),
+  ]);
+
   const coordinates = [
     {
       icon: MapPin,
       label: t.common.address,
-      value: AGENCY.address.full,
-      href: googleMapsLink(),
+      value: agency.address,
+      href: googleMapsLink(agency.address),
       external: true,
       ltr: false,
     },
     {
       icon: Phone,
       label: t.common.phone,
-      value: AGENCY.phone.landline,
-      href: `tel:${AGENCY.phone.landlineHref}`,
+      value: agency.phone,
+      href: `tel:${agency.phoneHref}`,
       ltr: true,
     },
     {
       icon: Smartphone,
       label: t.common.mobile,
-      value: AGENCY.phone.mobile,
-      href: `tel:${AGENCY.phone.mobileHref}`,
+      value: agency.mobile,
+      href: `tel:${agency.mobileHref}`,
       ltr: true,
     },
     {
       icon: Mail,
       label: t.common.email,
-      value: AGENCY.email,
-      href: `mailto:${AGENCY.email}`,
+      value: agency.email,
+      href: `mailto:${agency.email}`,
       ltr: true,
     },
   ];
@@ -129,7 +135,7 @@ export default async function ContactPage({
           </ul>
 
           <Button asChild variant="whatsapp" size="lg" className="mt-8 w-full sm:w-auto">
-            <a href={whatsappGeneral()} target="_blank" rel="noopener noreferrer">
+            <a href={whatsappHref} target="_blank" rel="noopener noreferrer">
               <MessageCircle className="size-4" />
               {t.contact.whatsappCta}
             </a>
@@ -138,8 +144,8 @@ export default async function ContactPage({
           <div className="mt-8 overflow-hidden rounded-[var(--radius-card)] border border-navy-100">
             <h2 className="sr-only">{t.contact.findUs}</h2>
             <iframe
-              src={googleMapsEmbedUrl()}
-              title={`${AGENCY.name} — ${t.contact.findUs}`}
+              src={googleMapsEmbedUrl(agency.address)}
+              title={`${agency.name} — ${t.contact.findUs}`}
               className="h-[300px] w-full border-0"
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
