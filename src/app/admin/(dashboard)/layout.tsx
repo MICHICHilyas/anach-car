@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Bell, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { AdminMenuButton, AdminSidebar } from "@/components/admin/sidebar";
 import { AdminNavProvider } from "@/components/admin/nav-context";
 import { UserMenu } from "@/components/admin/user-menu";
+import { NotificationBell } from "@/components/admin/notification-bell";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -51,16 +52,7 @@ export default async function AdminLayout({
                 </Link>
               </Button>
 
-              <Link
-                href="/admin/notifications"
-                className="relative inline-flex size-10 items-center justify-center rounded-lg text-navy-500 transition-colors hover:bg-navy-50 hover:text-navy-900"
-                aria-label={`Notifications${unread > 0 ? ` (${unread} non lues)` : ""}`}
-              >
-                <Bell className="size-5" />
-                {unread > 0 ? (
-                  <span className="absolute end-2 top-2 size-2 rounded-full bg-[var(--color-danger)] ring-2 ring-white" />
-                ) : null}
-              </Link>
+              <NotificationBell initialUnread={unread} />
 
               <UserMenu user={user} />
             </div>
