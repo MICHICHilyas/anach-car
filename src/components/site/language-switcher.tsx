@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Globe, Check } from "lucide-react";
 import { LOCALES, LOCALE_META, isLocale, type Locale } from "@/i18n/config";
@@ -16,6 +16,13 @@ import { rememberLocale } from "@/server/actions/locale";
 /**
  * Sélecteur de langue : remplace le premier segment de l'URL et mémorise le
  * choix dans un cookie pour les visites suivantes.
+ *
+ * L'ouverture du menu est pilotée par cet état plutôt que laissée à Radix.
+ * Le menu est modal : tant qu'il est ouvert, une couche invisible recouvre la
+ * page et neutralise les clics. Or la navigation démonte puis remonte le
+ * composant, et Radix n'a pas toujours le temps de retirer cette couche — le
+ * bandeau paraît alors avoir disparu, et il faut cliquer n'importe où pour
+ * qu'il revienne. On ferme donc explicitement avant de naviguer.
  */
 export function LanguageSwitcher({
   current,
@@ -26,9 +33,12 @@ export function LanguageSwitcher({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   function switchTo(locale: Locale) {
+    setOpen(false);
+
     // On reconstruit le chemin sans muter le tableau d'origine.
     const segments = pathname.split("/").filter(Boolean);
     const rest = segments.length && isLocale(segments[0]) ? segments.slice(1) : segments;
@@ -41,7 +51,7 @@ export function LanguageSwitcher({
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         className={cn(
           "inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium transition-colors",
