@@ -259,4 +259,101 @@ describe("désactivation et mot de passe", () => {
     expect(actions).toContain("user.create");
     expect(actions).toContain("user.disable");
   });
+  describe("changement de son propre mot de passe", () => {
+    /*
+     * Distinct de la réinitialisation par un administrateur : ici le mot de
+     * passe actuel est exigé, et l'opération est ouverte à tous les rôles.
+     * C'est ce qui permet à un employé de gérer son compte sans que le gérant
+     * ait à connaître son mot de passe.
+     */
+    async function ownAccount(password = "MotDePasseActuel1") {
+      const { hashPassword } = await import("@/lib/auth");
+      // Chaque cas repart d'un compte neuf : l'identifiant est fixé par le
+      // mock d'authentification, donc réutilisé d'un test à l'autre.
+      await db.session.deleteMany({ where: { userId: "actor" } });
+      await db.user.deleteMany({ where: { id: "actor" } });
+      return db.user.create({
+        data: {
+          id: "actor", // l'identité renvoyée par le mock d'authentification
+          email: "patron@anachcar.ma",
+          name: "Patron",
+          role: "ADMIN",
+          passwordHash: await hashPassword(password),
+        },
+      });
+    }
+
+    it("change le mot de passe et invalide toutes les sessions", async () => {
+      const { changeOwnPassword } = await import("@/server/actions/users");
+      const { verifyPassword } = await import("@/lib/auth");
+      const account = await ownAccount();
+      await db.session.create({
+        data: {
+          userId: account.id,
+          tokenHash: "session-ouverte-ailleurs",
+          expiresAt: new Date(Date.now() + 86_400_000),
+        },
+      });
+
+      const result = await changeOwnPassword({
+        currentPassword: "MotDePasseActuel1",
+        password: "NouveauMotDePasse2",
+        confirmPassword: "NouveauMotDePasse2",
+      });
+
+      expect(result.ok).toBe(true);
+      const updated = await db.user.findUnique({ where: { id: account.id } });
+      expect(await verifyPassword("NouveauMotDePasse2", updated!.passwordHash)).toBe(true);
+      // Un mot de passe changé par crainte d'une compromission ne doit
+      // laisser vivre aucune session ouverte ailleurs.
+      expect(await db.session.count({ where: { userId: account.id } })).toBe(0);
+    });
+
+    it("refuse si le mot de passe actuel est faux", async () => {
+      const { changeOwnPassword } = await import("@/server/actions/users");
+      const { verifyPassword } = await import("@/lib/auth");
+      const account = await ownAccount();
+
+      const result = await changeOwnPassword({
+        currentPassword: "PasLeBonMotDePasse",
+        password: "NouveauMotDePasse2",
+        confirmPassword: "NouveauMotDePasse2",
+      });
+
+      expect(result.ok).toBe(false);
+      // Sans cette vérification, une session laissée ouverte sur un poste de
+      // l'agence suffirait à s'approprier le compte.
+      const unchanged = await db.user.findUnique({ where: { id: account.id } });
+      expect(await verifyPassword("MotDePasseActuel1", unchanged!.passwordHash)).toBe(true);
+    });
+
+    it("refuse une confirmation qui ne correspond pas", async () => {
+      const { changeOwnPassword } = await import("@/server/actions/users");
+      await ownAccount();
+
+      const result = await changeOwnPassword({
+        currentPassword: "MotDePasseActuel1",
+        password: "NouveauMotDePasse2",
+        confirmPassword: "NouveauMotDePasse3",
+      });
+
+      expect(result.ok).toBe(false);
+    });
+
+    it("est ouvert aux employés, pas seulement aux administrateurs", async () => {
+      const { changeOwnPassword } = await import("@/server/actions/users");
+      const account = await ownAccount();
+      await db.user.update({ where: { id: account.id }, data: { role: "EMPLOYEE" } });
+      actorState.role = "EMPLOYEE";
+
+      const result = await changeOwnPassword({
+        currentPassword: "MotDePasseActuel1",
+        password: "NouveauMotDePasse2",
+        confirmPassword: "NouveauMotDePasse2",
+      });
+
+      actorState.role = "ADMIN";
+      expect(result.ok).toBe(true);
+    });
+  });
 });

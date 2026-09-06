@@ -7,6 +7,7 @@ import {
   KeyRound,
   LayoutDashboard,
   Settings,
+  UserCircle,
   Users,
   Wallet,
   Wrench,
@@ -25,4 +26,6 @@ export const ADMIN_NAV = [
   { href: "/admin/documents", label: "Documents", icon: FileText },
   { href: "/admin/notifications", label: "Notifications", icon: Bell, badge: "unread" as const },
   { href: "/admin/parametres", label: "Paramètres", icon: Settings },
+  // Accessible à tous les rôles, contrairement aux Paramètres réservés aux admins.
+  { href: "/admin/mon-compte", label: "Mon compte", icon: UserCircle },
 ] as const;

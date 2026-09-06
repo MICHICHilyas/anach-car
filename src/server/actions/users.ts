@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { UserRole } from "@/generated/prisma/enums";
-import { hashPassword, requireUserOrThrow } from "@/lib/auth";
+import { hashPassword, requireUserOrThrow, verifyPassword } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { USER_ROLE } from "@/lib/labels";
 import {
+  changePasswordSchema,
   createUserSchema,
   resetPasswordSchema,
   updateUserSchema,
@@ -211,6 +212,65 @@ export async function setUserActive(
 
     refresh();
     return { ok: true, data: { id: userId } };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/**
+ * Changement de son PROPRE mot de passe, quel que soit le rôle.
+ *
+ * Distinct de `resetUserPassword`, réservé aux administrateurs : ici le mot
+ * de passe actuel est vérifié, ce qui empêche qu'une session laissée ouverte
+ * sur un poste de l'agence permette de s'approprier le compte. C'est aussi
+ * la seule voie par laquelle un employé peut changer son mot de passe sans
+ * que le gérant ait à le connaître.
+ */
+export async function changeOwnPassword(input: unknown): Promise<UserActionResult> {
+  try {
+    const actor = await requireUserOrThrow();
+    const parsed = changePasswordSchema.safeParse(input);
+    if (!parsed.success) {
+      return { ok: false, error: firstError(parsed.error), fieldErrors: fields(parsed.error) };
+    }
+
+    const account = await db.user.findUnique({
+      where: { id: actor.id },
+      select: { id: true, name: true, passwordHash: true },
+    });
+    if (!account) return { ok: false, error: "Compte introuvable." };
+
+    const valid = await verifyPassword(parsed.data.currentPassword, account.passwordHash);
+    if (!valid) {
+      return {
+        ok: false,
+        error: "Mot de passe actuel incorrect.",
+        fieldErrors: { currentPassword: "Mot de passe actuel incorrect." },
+      };
+    }
+
+    await db.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: account.id },
+        data: { passwordHash: await hashPassword(parsed.data.password) },
+      });
+      /*
+       * Toutes les sessions tombent, y compris celle en cours : si le mot de
+       * passe est changé parce qu'on le croit compromis, laisser vivre les
+       * sessions ouvertes ailleurs viderait l'opération de son sens.
+       */
+      await tx.session.deleteMany({ where: { userId: account.id } });
+    });
+
+    await logAudit({
+      user: actor,
+      action: "user.password.self",
+      summary: `${account.name} a changé son mot de passe`,
+      entityType: "User",
+      entityId: account.id,
+    });
+
+    return { ok: true, data: { id: account.id } };
   } catch (error) {
     return failure(error);
   }

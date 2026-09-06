@@ -34,5 +34,28 @@ export const resetPasswordSchema = z.object({
   password,
 });
 
+/**
+ * Changement de son propre mot de passe.
+ *
+ * Le mot de passe actuel est exigé : sans lui, une session laissée ouverte
+ * sur un poste de l'agence suffirait à s'approprier le compte. La
+ * confirmation évite qu'une faute de frappe enferme quelqu'un dehors.
+ */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Mot de passe actuel obligatoire"),
+    password,
+    confirmPassword: z.string().min(1, "Confirmation obligatoire"),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Les deux mots de passe ne correspondent pas",
+    path: ["confirmPassword"],
+  })
+  .refine((d) => d.password !== d.currentPassword, {
+    message: "Le nouveau mot de passe doit être différent de l'actuel",
+    path: ["password"],
+  });
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
