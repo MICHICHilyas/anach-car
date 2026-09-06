@@ -28,9 +28,21 @@ const BLUE = "#1d6fa5";
 const GRID = "#e2edf1";
 const AXIS = "#6d9db1";
 
-export function DashboardCharts({ data }: { data: Point[] }) {
+/**
+ * `showRevenue` suit le rôle : seul le gérant voit le chiffre d'affaires.
+ * La courbe des réservations, elle, reste visible de tous — elle sert à
+ * anticiper l'activité, pas à connaître les recettes.
+ */
+export function DashboardCharts({
+  data,
+  showRevenue = true,
+}: {
+  data: Point[];
+  showRevenue?: boolean;
+}) {
   return (
-    <div className="grid gap-5 xl:grid-cols-2">
+    <div className={`grid gap-5 ${showRevenue ? "xl:grid-cols-2" : ""}`}>
+      {showRevenue ? (
       <ChartCard
         title="Chiffre d'affaires encaissé"
         subtitle="6 derniers mois · dirhams"
@@ -68,6 +80,8 @@ export function DashboardCharts({ data }: { data: Point[] }) {
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
+
+      ) : null}
 
       <ChartCard title="Réservations reçues" subtitle="6 derniers mois · demandes">
         <ResponsiveContainer width="100%" height={240}>

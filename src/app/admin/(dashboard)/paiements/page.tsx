@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Wallet } from "lucide-react";
 import { db } from "@/lib/db";
+import { canSeeFinancials, requireUser } from "@/lib/auth";
 import { formatDateShort } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import { PAYMENT_METHOD, PAYMENT_STATUS, PAYMENT_TYPE } from "@/lib/labels";
@@ -23,6 +24,15 @@ export const metadata = { title: "Paiements" };
 const REVENUE_TYPES = ["DEPOSIT", "BALANCE", "EXTRA_FEE"] as const;
 
 export default async function PaymentsPage() {
+  const user = await requireUser();
+  /*
+   * Les recettes du mois et de l'année ne concernent que le gérant. On ne se
+   * contente pas de masquer les cartes : sans ce test, les montants seraient
+   * calculés puis envoyés au navigateur d'un employé, où ils resteraient
+   * lisibles dans le HTML.
+   */
+  const showTotals = canSeeFinancials(user);
+
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -36,17 +46,21 @@ export default async function PaymentsPage() {
         recordedBy: { select: { name: true } },
       },
     }),
-    db.payment.aggregate({
-      where: { paidAt: { gte: startOfMonth }, type: { in: [...REVENUE_TYPES] } },
-      _sum: { amount: true },
-    }),
-    db.payment.aggregate({
-      where: {
-        paidAt: { gte: new Date(now.getFullYear(), 0, 1) },
-        type: { in: [...REVENUE_TYPES] },
-      },
-      _sum: { amount: true },
-    }),
+    showTotals
+      ? db.payment.aggregate({
+          where: { paidAt: { gte: startOfMonth }, type: { in: [...REVENUE_TYPES] } },
+          _sum: { amount: true },
+        })
+      : null,
+    showTotals
+      ? db.payment.aggregate({
+          where: {
+            paidAt: { gte: new Date(now.getFullYear(), 0, 1) },
+            type: { in: [...REVENUE_TYPES] },
+          },
+          _sum: { amount: true },
+        })
+      : null,
     db.reservation.findMany({
       where: {
         status: { in: ["CONFIRMED", "ACTIVE", "COMPLETED"] },
@@ -82,19 +96,25 @@ export default async function PaymentsPage() {
         description="Suivi des encaissements, des acomptes et des sommes restant dues."
       />
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label="Encaissé ce mois-ci"
-          value={formatMoney(monthTotal._sum.amount ?? 0)}
-          icon={Wallet}
-          tone="success"
-        />
-        <StatCard
-          label="Encaissé cette année"
-          value={formatMoney(yearTotal._sum.amount ?? 0)}
-          icon={Wallet}
-          tone="info"
-        />
+      <div
+        className={`mb-5 grid gap-4 ${showTotals ? "sm:grid-cols-3" : "sm:max-w-sm"}`}
+      >
+        {showTotals ? (
+          <>
+            <StatCard
+              label="Encaissé ce mois-ci"
+              value={formatMoney(monthTotal?._sum.amount ?? 0)}
+              icon={Wallet}
+              tone="success"
+            />
+            <StatCard
+              label="Encaissé cette année"
+              value={formatMoney(yearTotal?._sum.amount ?? 0)}
+              icon={Wallet}
+              tone="info"
+            />
+          </>
+        ) : null}
         <StatCard
           label="Reste à encaisser"
           value={formatMoney(outstandingTotal)}

@@ -16,7 +16,7 @@ import {
   Wallet,
   Wrench,
 } from "lucide-react";
-import { requireUser } from "@/lib/auth";
+import { canSeeFinancials, requireUser } from "@/lib/auth";
 import { refreshAlerts } from "@/lib/notifications";
 import {
   getDashboardAlerts,
@@ -64,6 +64,8 @@ export default async function DashboardPage() {
       getDashboardAlerts(6),
     ]);
 
+  // Les recettes ne concernent que le gérant ; l'activité concerne tout le monde.
+  const showFinancials = canSeeFinancials(user);
   const firstName = user.name.split(" ")[0];
 
   return (
@@ -125,14 +127,16 @@ export default async function DashboardPage() {
           tone="info"
           href="/admin/locations"
         />
-        <StatCard
-          label="Encaissé ce mois-ci"
-          value={formatMoney(finance.monthRevenue)}
-          hint={`${formatMoney(finance.weekRevenue)} sur 7 jours`}
-          icon={Wallet}
-          tone="success"
-          href="/admin/paiements"
-        />
+        {showFinancials ? (
+          <StatCard
+            label="Encaissé ce mois-ci"
+            value={formatMoney(finance.monthRevenue)}
+            hint={`${formatMoney(finance.weekRevenue)} sur 7 jours`}
+            icon={Wallet}
+            tone="success"
+            href="/admin/paiements"
+          />
+        ) : null}
       </div>
 
       {/* ------------------- Alertes + échéances ------------------- */}
@@ -233,7 +237,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* ------------------------ Graphiques ------------------------ */}
-      <DashboardCharts data={series} />
+      <DashboardCharts data={series} showRevenue={showFinancials} />
 
       {/* ------------------- Journée en cours ------------------- */}
       <div className="grid gap-5 lg:grid-cols-2">

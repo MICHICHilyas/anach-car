@@ -1,5 +1,5 @@
 import { getSettings } from "@/lib/settings";
-import { requireUser } from "@/lib/auth";
+import { canSeeFinancials, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatDateTime } from "@/lib/dates";
 import { USER_ROLE } from "@/lib/labels";
@@ -13,8 +13,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export const metadata = { title: "Paramètres" };
 
 export default async function SettingsPage() {
-  const [user, settings, users, recentAudit] = await Promise.all([
-    requireUser(),
+  // Lu avant les autres requêtes : le rôle décide de ce qu'on interroge.
+  const user = await requireUser();
+  /*
+   * Le journal dit qui a validé une réservation, modifié un prix ou consulté
+   * une pièce d'identité. C'est l'outil de contrôle du gérant sur son agence :
+   * un employé n'a pas à suivre l'activité de ses collègues.
+   */
+  const showAudit = canSeeFinancials(user);
+
+  const [settings, users, recentAudit] = await Promise.all([
     getSettings(),
     db.user.findMany({
       orderBy: [{ isActive: "desc" }, { createdAt: "asc" }],
@@ -28,17 +36,19 @@ export default async function SettingsPage() {
         lastLoginAt: true,
       },
     }),
-    db.auditLog.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 15,
-      select: {
-        id: true,
-        summary: true,
-        userLabel: true,
-        action: true,
-        createdAt: true,
-      },
-    }),
+    showAudit
+      ? db.auditLog.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 15,
+          select: {
+            id: true,
+            summary: true,
+            userLabel: true,
+            action: true,
+            createdAt: true,
+          },
+        })
+      : [],
   ]);
 
   // Seul un administrateur gère les comptes ; les autres rôles voient la
@@ -133,6 +143,7 @@ export default async function SettingsPage() {
             </CardContent>
           </Card>
 
+          {showAudit ? (
           <Card>
             <CardHeader>
               <CardTitle>Journal d&apos;activité</CardTitle>
@@ -156,6 +167,7 @@ export default async function SettingsPage() {
               )}
             </CardContent>
           </Card>
+          ) : null}
         </div>
       </div>
     </>

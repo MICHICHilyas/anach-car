@@ -155,6 +155,21 @@ export function isAdmin(user: SessionUser | null): boolean {
   return user?.role === UserRole.ADMIN;
 }
 
+/**
+ * Accès aux chiffres de gestion : recettes du mois et de l'année, graphique
+ * des revenus, journal d'activité.
+ *
+ * Réservé au gérant. Un employé a besoin du reste à encaisser — savoir ce
+ * qu'un client doit encore quand il se présente — mais pas du chiffre
+ * d'affaires de l'agence ni de l'activité de ses collègues.
+ *
+ * À utiliser AVANT d'interroger la base, pas seulement pour masquer un bloc :
+ * un total calculé puis caché voyagerait quand même jusqu'au navigateur.
+ */
+export function canSeeFinancials(user: SessionUser | null): boolean {
+  return isAdmin(user);
+}
+
 /** Nettoyage des sessions expirées (appelé à chaque connexion). */
 export async function purgeExpiredSessions(): Promise<void> {
   await db.session
