@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
 import { FileField } from "@/components/ui/file-field";
+import { compressImage } from "@/lib/compress-image";
 import { createReservation } from "@/server/actions/booking";
 import type { Dictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
@@ -79,7 +80,16 @@ export function BookingForm({
         acceptTerms: formData.get("acceptTerms") === "on",
         website: String(formData.get("website") ?? ""),
         },
-        { cin: cinFile, license: licenseFile },
+        {
+          /*
+           * Compression dans le navigateur : une photo de CIN prise au
+           * téléphone pèse plusieurs mégaoctets, ce qui faisait dépasser la
+           * taille maximale d'une requête et échouer la réservation sans
+           * message explicite. Réduire ici allège aussi l'envoi en 4G.
+           */
+          cin: cinFile ? await compressImage(cinFile) : null,
+          license: licenseFile ? await compressImage(licenseFile) : null,
+        },
       );
 
       if (result.ok) {

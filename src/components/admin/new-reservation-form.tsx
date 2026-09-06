@@ -12,6 +12,7 @@ import { Input, NativeSelect, Textarea } from "@/components/ui/input";
 import { FileField } from "@/components/ui/file-field";
 import { createAdminReservation } from "@/server/actions/reservations";
 import { formatMoney } from "@/lib/money";
+import { compressImage } from "@/lib/compress-image";
 import { RESERVATION_SOURCE } from "@/lib/labels";
 import { toLocalDateInput } from "@/lib/search-params";
 
@@ -95,7 +96,13 @@ export function NewReservationForm({
           ...form,
           customerId: newCustomer ? undefined : form.customerId,
         },
-        { cin: cinFile, license: licenseFile },
+        {
+          // Le gérant photographie les papiers au téléphone : sans
+          // compression, la requête dépasse la taille maximale et la
+          // réservation échoue sans message explicite.
+          cin: cinFile ? await compressImage(cinFile) : null,
+          license: licenseFile ? await compressImage(licenseFile) : null,
+        },
       );
 
       if (result.ok && result.data) {
