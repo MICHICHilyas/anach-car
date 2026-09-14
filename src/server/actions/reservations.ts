@@ -22,6 +22,7 @@ import {
 } from "@/lib/emails/templates";
 import { findConflicts } from "@/lib/availability";
 import { getSettings } from "@/lib/settings";
+import { formatMoney } from "@/lib/money";
 import { buildQuote } from "@/lib/pricing";
 import { localToUtc } from "@/lib/dates";
 import { nextReservationReference } from "@/lib/reference";
@@ -533,6 +534,24 @@ const adminReservationSchema = z.object({
   source: z.enum(["PHONE", "WHATSAPP", "WALK_IN", "ADMIN"]).default("WALK_IN"),
   confirmImmediately: z.coerce.boolean().default(true),
   internalNotes: z.string().max(1000).optional(),
+  /*
+   * Prix réellement pratiqué, en centimes.
+   *
+   * L'agence négocie : un client régulier, une longue durée, la basse saison.
+   * Sans ce champ, le gérant devait enregistrer un montant qu'il n'avait pas
+   * facturé — ses recettes et son « reste à encaisser » devenaient faux, et
+   * il finissait par ne plus saisir ces locations du tout.
+   *
+   * Vide ou absent : le tarif calculé s'applique, comme avant.
+   */
+  customTotal: z.coerce
+    .number()
+    .int("Montant invalide")
+    .min(0, "Le prix ne peut pas être négatif")
+    .max(100_000_00, "Montant trop élevé — vérifiez la saisie")
+    .optional(),
+  /** Pourquoi le prix diffère : relu des mois plus tard, en cas de litige. */
+  priceReason: z.string().trim().max(200).optional(),
 });
 
 /**
@@ -601,6 +620,33 @@ export async function createAdminReservation(
       graceMinutes: settings.reservation.graceMinutes,
     });
 
+    /*
+     * Prix négocié au comptoir.
+     *
+     * L'écart est porté par `discount`, qui peut donc devenir négatif quand
+     * la location est facturée au-dessus du tarif — un supplément hors saison,
+     * une livraison lointaine. Le total reste la seule valeur qui fait foi
+     * pour les encaissements, et il correspond enfin à ce que le client paie.
+     */
+    const customTotal =
+      data.customTotal !== undefined && data.customTotal !== quote.total
+        ? data.customTotal
+        : null;
+    const appliedTotal = customTotal ?? quote.total;
+    const appliedDiscount = quote.discount + (quote.total - appliedTotal);
+
+    const priceLines = customTotal
+      ? [
+          ...quote.lines,
+          {
+            label: data.priceReason
+              ? `Prix négocié — ${data.priceReason}`
+              : "Prix négocié à l'agence",
+            amount: appliedTotal - quote.total,
+          },
+        ]
+      : quote.lines;
+
     const reservation = await db.$transaction(async (tx) => {
       const conflicts = await findConflicts(vehicle.id, start, end);
       if (conflicts.length > 0) {
@@ -637,9 +683,9 @@ export async function createAdminReservation(
           dailyRate: quote.dailyRate,
           subtotal: quote.subtotal,
           extraFees: quote.extraFees,
-          discount: quote.discount,
-          totalAmount: quote.total,
-          priceBreakdown: quote.lines as never,
+          discount: appliedDiscount,
+          totalAmount: appliedTotal,
+          priceBreakdown: priceLines as never,
           status: data.confirmImmediately
             ? ReservationStatus.CONFIRMED
             : ReservationStatus.PENDING,
@@ -663,7 +709,15 @@ export async function createAdminReservation(
     await logAudit({
       user,
       action: "reservation.create",
-      summary: `Réservation ${reservation.reference} créée au comptoir (${vehicle.brand} ${vehicle.model})`,
+      summary:
+        `Réservation ${reservation.reference} créée au comptoir ` +
+        `(${vehicle.brand} ${vehicle.model})` +
+        // Un prix négocié se relit des mois plus tard, face à un litige ou
+        // à un employé qui aurait fait un geste à un proche.
+        (customTotal
+          ? ` — prix ajusté : ${formatMoney(quote.total)} → ${formatMoney(appliedTotal)}` +
+            (data.priceReason ? ` (${data.priceReason})` : "")
+          : ""),
       entityType: "Reservation",
       entityId: reservation.id,
     });

@@ -256,4 +256,119 @@ describe("réservation saisie au comptoir", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toContain("client");
   });
+  describe("prix négocié au comptoir", () => {
+    /*
+     * L'agence ne facture pas toujours au tarif de la grille : client
+     * régulier, longue durée, basse saison. Sans ces cas, le gérant
+     * enregistrait un montant qu'il n'avait pas encaissé — ses recettes et
+     * son « reste à encaisser » devenaient faux.
+     */
+    it("enregistre le prix réellement pratiqué, pas le tarif calculé", async () => {
+      const { createAdminReservation } = await import("@/server/actions/reservations");
+
+      // 4 jours à 250 DH = 1 000 DH ; l'agence facture 800 DH.
+      const result = await createAdminReservation({
+        ...walkIn(),
+        customTotal: 80000,
+        priceReason: "client régulier",
+      });
+
+      expect(result.ok).toBe(true);
+      const reservation = await db.reservation.findFirst({
+        orderBy: { createdAt: "desc" },
+      });
+      expect(reservation?.totalAmount).toBe(80000);
+      // Le tarif journalier reste celui de la grille : c'est le total qui a
+      // été négocié, pas la grille tarifaire du véhicule.
+      expect(reservation?.dailyRate).toBe(25000);
+    });
+
+    it("accepte un prix supérieur au tarif", async () => {
+      const { createAdminReservation } = await import("@/server/actions/reservations");
+
+      // Une livraison lointaine ou un supplément de saison se facture
+      // au-dessus de la grille : la remise devient alors négative.
+      const result = await createAdminReservation({
+        ...walkIn(),
+        customTotal: 130000,
+        priceReason: "livraison Taghazout",
+      });
+
+      expect(result.ok).toBe(true);
+      const reservation = await db.reservation.findFirst({
+        orderBy: { createdAt: "desc" },
+      });
+      expect(reservation?.totalAmount).toBe(130000);
+    });
+
+    it("applique le tarif calculé quand aucun prix n'est saisi", async () => {
+      const { createAdminReservation } = await import("@/server/actions/reservations");
+
+      const result = await createAdminReservation(walkIn());
+
+      expect(result.ok).toBe(true);
+      const reservation = await db.reservation.findFirst({
+        orderBy: { createdAt: "desc" },
+      });
+      expect(reservation?.totalAmount).toBe(100000);
+    });
+
+    it("refuse un prix négatif", async () => {
+      const { createAdminReservation } = await import("@/server/actions/reservations");
+
+      const result = await createAdminReservation({ ...walkIn(), customTotal: -5000 });
+
+      expect(result.ok).toBe(false);
+    });
+
+    it("refuse un montant manifestement erroné", async () => {
+      const { createAdminReservation } = await import("@/server/actions/reservations");
+
+      // Une faute de frappe — 100 000 DH au lieu de 1 000 — fausserait les
+      // recettes sans que personne ne s'en aperçoive.
+      const result = await createAdminReservation({
+        ...walkIn(),
+        customTotal: 9_999_999_00,
+      });
+
+      expect(result.ok).toBe(false);
+    });
+
+    it("trace l'écart et son motif dans le journal", async () => {
+      const { createAdminReservation } = await import("@/server/actions/reservations");
+
+      await createAdminReservation({
+        ...walkIn(),
+        customTotal: 80000,
+        priceReason: "client régulier",
+      });
+
+      const entry = await db.auditLog.findFirst({
+        where: { action: "reservation.create" },
+        orderBy: { createdAt: "desc" },
+      });
+      // Le gérant doit pouvoir retrouver qui a consenti quel geste, et
+      // pourquoi, des mois plus tard.
+      expect(entry?.summary).toContain("prix ajusté");
+      expect(entry?.summary).toContain("client régulier");
+    });
+
+    it("conserve le détail du prix négocié dans le devis", async () => {
+      const { createAdminReservation } = await import("@/server/actions/reservations");
+
+      await createAdminReservation({
+        ...walkIn(),
+        customTotal: 80000,
+        priceReason: "longue durée",
+      });
+
+      const reservation = await db.reservation.findFirst({
+        orderBy: { createdAt: "desc" },
+      });
+      const lines = reservation?.priceBreakdown as { label: string }[] | null;
+      // Le contrat de location reprend ces lignes : le client doit voir d'où
+      // vient le montant qu'il paie.
+      expect(lines?.some((line) => line.label.includes("longue durée"))).toBe(true);
+    });
+  });
 });

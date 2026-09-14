@@ -42,6 +42,12 @@ export function NewReservationForm({
   const [error, setError] = useState<string | null>(null);
   const [newCustomer, setNewCustomer] = useState(customers.length === 0);
   // Pièces d'identité photographiées au comptoir.
+  /*
+   * Prix négocié au comptoir, saisi en dirhams. Vide tant que l'agence n'a
+   * rien modifié : le tarif calculé s'applique alors, comme avant.
+   */
+  const [customPrice, setCustomPrice] = useState("");
+  const [priceReason, setPriceReason] = useState("");
   const [cinFile, setCinFile] = useState<File | null>(null);
   const [licenseFile, setLicenseFile] = useState<File | null>(null);
   const [form, setForm] = useState(() => ({
@@ -95,6 +101,12 @@ export function NewReservationForm({
         {
           ...form,
           customerId: newCustomer ? undefined : form.customerId,
+          // Les montants circulent en centimes : 1 000 DH -> 100000.
+          customTotal:
+            customPrice.trim() === ""
+              ? undefined
+              : Math.round(Number(customPrice.replace(",", ".")) * 100),
+          priceReason: priceReason.trim() || undefined,
         },
         {
           // Le gérant photographie les papiers au téléphone : sans
@@ -361,10 +373,58 @@ export function NewReservationForm({
                   </dd>
                 </div>
                 <div className="flex items-baseline justify-between border-t border-navy-100 pt-2.5">
-                  <dt className="font-semibold text-navy-900">Total</dt>
-                  <dd className="font-[family-name:var(--font-display)] text-[20px] font-bold tabular-nums text-navy-950">
+                  <dt className="font-semibold text-navy-900">
+                    {customPrice.trim() ? "Tarif calculé" : "Total"}
+                  </dt>
+                  <dd
+                    className={
+                      customPrice.trim()
+                        ? "text-[15px] tabular-nums text-navy-400 line-through"
+                        : "font-[family-name:var(--font-display)] text-[20px] font-bold tabular-nums text-navy-950"
+                    }
+                  >
                     {formatMoney(estimate.total)}
                   </dd>
+                </div>
+
+                {/*
+                  Prix négocié. L'agence pratique des tarifs différents de la
+                  grille : client régulier, longue durée, basse saison. Sans
+                  ce champ, il fallait enregistrer un montant qui n'avait pas
+                  été facturé — et le « reste à encaisser » devenait faux.
+                */}
+                <div className="space-y-2 border-t border-navy-100 pt-3">
+                  <label
+                    htmlFor="customPrice"
+                    className="block text-[13px] font-medium text-navy-700"
+                  >
+                    Prix appliqué au client
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="customPrice"
+                      inputMode="decimal"
+                      placeholder={String(Math.round(estimate.total / 100))}
+                      value={customPrice}
+                      onChange={(event) => setCustomPrice(event.target.value)}
+                      className="tabular-nums"
+                    />
+                    <span className="text-[13px] font-medium text-navy-500">DH</span>
+                  </div>
+
+                  {customPrice.trim() ? (
+                    <Input
+                      aria-label="Motif du prix négocié"
+                      placeholder="Motif : client régulier, longue durée…"
+                      value={priceReason}
+                      onChange={(event) => setPriceReason(event.target.value)}
+                      maxLength={200}
+                    />
+                  ) : (
+                    <p className="text-[12px] leading-relaxed text-navy-400">
+                      Laissez vide pour appliquer le tarif calculé.
+                    </p>
+                  )}
                 </div>
               </dl>
             ) : (
