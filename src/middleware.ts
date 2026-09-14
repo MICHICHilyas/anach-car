@@ -4,9 +4,10 @@ import { SESSION_COOKIE_NAME } from "@/lib/session-cookie";
 
 /**
  * Middleware :
- *  1. préfixe les URL publiques par la langue (/  ->  /fr) ;
- *  2. expose la langue courante aux composants serveur via l'en-tête x-locale ;
- *  3. écarte les visiteurs non connectés des routes /admin.
+ *  1. renvoie www.anachcar.com vers anachcar.com ;
+ *  2. préfixe les URL publiques par la langue (/  ->  /fr) ;
+ *  3. expose la langue courante aux composants serveur via l'en-tête x-locale ;
+ *  4. écarte les visiteurs non connectés des routes /admin.
  *
  * Point important : le contrôle d'accès du middleware n'est qu'un
  * pré-filtrage (il ne voit qu'un cookie, pas la base). La véritable
@@ -15,6 +16,25 @@ import { SESSION_COOKIE_NAME } from "@/lib/session-cookie";
  */
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+
+  /*
+   * Une seule adresse pour le site.
+   *
+   * www.anachcar.com et anachcar.com répondaient toutes deux, et Google les
+   * a indexées comme deux sites distincts : la popularité se divisait entre
+   * les deux au lieu de s'additionner. Une redirection permanente (308, qui
+   * préserve la méthode HTTP contrairement à 301) règle la question à la
+   * source, plutôt que d'attendre que le moteur devine laquelle fait foi.
+   *
+   * Placé avant tout le reste : inutile de calculer une langue ou de lire un
+   * cookie pour une requête qu'on s'apprête à renvoyer ailleurs.
+   */
+  const host = request.headers.get("host");
+  if (host?.startsWith("www.")) {
+    const url = new URL(request.url);
+    url.host = host.slice(4);
+    return NextResponse.redirect(url, 308);
+  }
 
   // --- Espace agence : français uniquement, session obligatoire ---
   if (pathname.startsWith("/admin")) {
