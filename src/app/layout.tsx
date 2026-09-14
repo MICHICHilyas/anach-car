@@ -39,7 +39,17 @@ export const metadata: Metadata = {
   applicationName: AGENCY.name,
   authors: [{ name: AGENCY.name }],
   formatDetection: { telephone: true },
-  icons: { icon: "/favicon.png", apple: "/favicon.png" },
+  /*
+   * Google cherche /favicon.ico avant de lire ces balises, et n'affichait
+   * donc qu'un globe générique dans ses résultats. Le .ico et l'icône PNG
+   * vivent maintenant dans src/app/, d'où Next.js les sert à la racine et
+   * génère lui-même les balises avec leurs dimensions — un favicon dont la
+   * taille n'est pas déclarée est ignoré par le moteur.
+   *
+   * Reste apple-touch-icon, que Next.js ne déduit pas : c'est l'icône d'un
+   * raccourci ajouté à l'écran d'accueil d'un iPhone.
+   */
+  icons: { apple: "/favicon.png" },
 };
 
 export const viewport: Viewport = {
