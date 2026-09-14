@@ -9,7 +9,6 @@ import {
   Cog,
   DoorOpen,
   Fuel,
-  Gauge,
   ShieldCheck,
   Snowflake,
   Users,
@@ -113,11 +112,13 @@ export default async function VehicleDetailPage({
     { icon: Users, label: t.vehicles.seats, value: String(vehicle.seats) },
     { icon: DoorOpen, label: t.vehicles.doors, value: String(vehicle.doors) },
     { icon: Calendar, label: t.vehicles.year, value: String(vehicle.year) },
-    {
-      icon: Gauge,
-      label: t.vehicles.mileage,
-      value: `${vehicle.mileage.toLocaleString("fr-MA")} km`,
-    },
+    /*
+     * Le kilométrage n'est plus affiché au public (demande de l'agence) : il
+     * change à chaque location et inquiétait des clients sans rien leur
+     * apprendre d'utile — un véhicule révisé à 120 000 km vaut mieux qu'un
+     * autre négligé à 40 000. Il reste suivi dans l'espace agence, où il
+     * déclenche les alertes de vidange.
+     */
     ...(vehicle.hasAirConditioning
       ? [{ icon: Snowflake, label: t.vehicles.airConditioning, value: t.common.yes }]
       : []),
