@@ -166,7 +166,8 @@ export function BookingForm({
             htmlFor="phone"
             required
             error={fieldErrors.phone}
-            hint="+212 6 61 80 58 08"
+            // Exemple de format : un numéro neutre, pas celui de l'agence.
+            hint="+212 6 12 34 56 78"
           >
             <Input
               id="phone"

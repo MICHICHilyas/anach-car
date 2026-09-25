@@ -185,7 +185,7 @@ async function main() {
       name: "Taoufik Aanach",
       passwordHash: await bcrypt.hash("Admin@2026", 12),
       role: "ADMIN",
-      phone: "+212 6 61 80 58 08",
+      phone: "+212 6 00 00 00 00",
     },
   });
   await db.user.create({
@@ -355,10 +355,27 @@ async function main() {
     ],
   });
 
+  /*
+   * Coordonnées fictives.
+   *
+   * Le numéro du gérant s'affiche dans l'en-tête, le pied de page, la page
+   * contact, les boutons WhatsApp et les emails. Sur une vidéo publiée, il
+   * deviendrait un numéro que n'importe qui peut appeler — et le site ne
+   * reçoit pas encore assez d'appels pour que ce soit anodin.
+   */
+  const showcaseSettings = {
+    reservation: { minAdvanceHours: 2 },
+    agency: {
+      phone: "+212 5 28 00 00 00",
+      mobile: "+212 6 00 00 00 00",
+      whatsapp: "212600000000",
+      email: "contact@anachcar.com",
+    },
+  };
   await db.setting.upsert({
     where: { key: "app" },
-    create: { key: "app", value: { reservation: { minAdvanceHours: 2 } } },
-    update: { value: { reservation: { minAdvanceHours: 2 } } },
+    create: { key: "app", value: showcaseSettings },
+    update: { value: showcaseSettings },
   });
 
   await db.counter.createMany({
