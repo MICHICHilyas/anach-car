@@ -620,15 +620,22 @@ async function main() {
     ],
   });
 
-  // ----------------------------------------------------------- Paramètres
-  await db.setting.create({
-    data: {
-      key: "app",
-      value: {
-        reservation: { minAdvanceHours: 2 },
-        maintenance: { oilChangeAlertKm: 500, insuranceAlertDays: 30, inspectionAlertDays: 30 },
-      },
-    },
+  /*
+   * ----------------------------------------------------------- Paramètres
+   *
+   * `upsert` et non `create` : le nettoyage plus haut épargne cette table,
+   * car les réglages de l'agence ne sont pas des données de démonstration.
+   * Relancer le seed sur une base déjà remplie échouait donc sur la clé
+   * unique, et le jeu de données restait à moitié installé.
+   */
+  const demoSettings = {
+    reservation: { minAdvanceHours: 2 },
+    maintenance: { oilChangeAlertKm: 500, insuranceAlertDays: 30, inspectionAlertDays: 30 },
+  };
+  await db.setting.upsert({
+    where: { key: "app" },
+    create: { key: "app", value: demoSettings },
+    update: { value: demoSettings },
   });
 
   /*
